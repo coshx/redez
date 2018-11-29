@@ -3,5 +3,7 @@ Easily generate endpoints for Apollo Server along with React components that ret
 
 ## Run locally
 `cd react-apollo-magic-glue`
+
 `npm link`
+
 `react-apollo-magic-glue generate`
