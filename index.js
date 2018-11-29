@@ -11,13 +11,6 @@ commander
   .version('0.0.1')
   .description(DESCRIPTION);
 
-function welcome() {
-  console.log('\n');
-  console.log(chalk.green('react-apollo-scaffold'));
-  console.log(DESCRIPTION);
-  console.log('\n');
-}
-
 commander
   .command('generate')
   .alias('g')
@@ -55,6 +48,13 @@ async function addResource() {
   await resourceFieldPromptLoop(output);
 
   console.log(output);
+}
+
+function welcome() {
+  console.log('\n');
+  console.log(chalk.green('react-apollo-magic-glue'));
+  console.log(DESCRIPTION);
+  console.log('\n');
 }
 
 function resourceNamePrompt() {
