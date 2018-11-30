@@ -6,4 +6,4 @@ Easily generate endpoints for Apollo Server along with React components that ret
 
 `npm link`
 
-`react-apollo-magic-glue generate`
+`react-apollo-magic-glue g`
