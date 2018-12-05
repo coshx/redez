@@ -5,6 +5,7 @@ const DESCRIPTION = 'Easily generate endpoints for Apollo Server along with Reac
 const commander = require('commander');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
+const jsonToComponents = require('./jsonToComponents');
 // const shell = require('shelljs');
 
 commander
@@ -48,6 +49,7 @@ async function addResource() {
   await resourceFieldPromptLoop(output);
 
   console.log(output);
+  jsonToComponents(output);
 }
 
 function welcome() {
