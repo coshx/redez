@@ -1,7 +1,7 @@
 {
-  "name": "react-apollo-scaffold",
+  "name": "react-apollo-magic-glue",
   "version": "0.0.1",
-  "description": "CLI tool for generating React components in tandem with anApollo Server schema",
+  "description": "CLI tool for generating React components in tandem with an Apollo Server schema",
   "main": "index.js",
   "author": "Coshx Labs",
   "license": "MIT",

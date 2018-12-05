@@ -72,14 +72,14 @@ function resourceNamePrompt() {
 function desiredViewsPrompt() {
   const questions = [
     {
-      name: 'shouldGenerateCollectionView',
-      type: 'confirm',
-      message: 'Do you want a collection view for your new resource?',
-    },
-    {
       name: 'shouldGenerateDetailView',
       type: 'confirm',
       message: 'Do you want a detail view for your new resource?',
+    },
+    {
+      name: 'shouldGenerateCollectionView',
+      type: 'confirm',
+      message: 'Do you want a collection view for your new resource?',
     },
   ];
 
