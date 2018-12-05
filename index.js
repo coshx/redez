@@ -5,6 +5,9 @@ const DESCRIPTION = 'Easily generate endpoints for Apollo Server along with Reac
 const commander = require('commander');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
+
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 // const shell = require('shelljs');
 
 commander
@@ -25,6 +28,7 @@ commander
 
 async function addResource() {
   welcome();
+  const output = await verifyConfig();
 
   const { resourceName } = await resourceNamePrompt();
 
@@ -33,9 +37,7 @@ async function addResource() {
     shouldGenerateDetailView,
   } = await desiredViewsPrompt();
 
-  const output = {
-    name: resourceName,
-  };
+  output.name = resourceName;
 
   if (shouldGenerateDetailView) {
     output.detailViewFields = [];
@@ -55,6 +57,77 @@ function welcome() {
   console.log(chalk.green('react-apollo-magic-glue'));
   console.log(DESCRIPTION);
   console.log('\n');
+}
+
+async function verifyConfig() {
+  const configPath = await getConfigPath();
+  return configPath ? loadConfig(configPath) : generateConfig();
+
+  async function getConfigPath() {
+    let path;
+    const repoPath = await getCurrentGitRepoPath();
+
+    if (repoPath) {
+      path = await configSearch(repoPath);
+    }
+
+    if (!path) {
+      path = await configSearch(`${process.cwd()}/`);
+    }
+
+    return path;
+  }
+
+  async function loadConfig(path) {
+    // TODO Load file and parse into json object
+    console.log(path);
+  }
+
+  async function generateConfig() {
+    console.log("Can't find a valid config file. Please create one or answer the following questions in order to do so automatically:");
+    const { clientPath } = await inquirer.prompt([{
+      name: 'clientPath',
+      type: 'input',
+      message: 'What is the path to your frontend (React/Apollo Client) project?',
+    }]);
+
+    const { serverPath } = await inquirer.prompt([{
+      name: 'serverPath',
+      type: 'input',
+      message: 'What is the path to your backend (Apollo Server) project?',
+    }]);
+
+    const { generateCSSModules } = await inquirer.prompt([{
+      name: 'generateCSSModules',
+      type: 'confirm',
+      message: 'Would you like to generate CSS modules alongside your React components?',
+    }]);
+
+    const initialConfig = {
+      clientPath,
+      serverPath,
+      generateCSSModules,
+    };
+
+    // TODO Create config file and populate with data
+
+    return initialConfig;
+  }
+
+  async function getCurrentGitRepoPath() {
+    const { stdout } = await exec('git rev-parse --git-dir').catch(() => ({ stdout: null }));
+
+    if (!stdout || stdout.trim() === '.git') {
+      return null;
+    }
+
+    return stdout.replace('.git', '');
+  }
+
+  async function configSearch(startPath) {
+    // TODO Look in the given directory for the config file
+    console.log(startPath);
+  }
 }
 
 function resourceNamePrompt() {
