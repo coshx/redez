@@ -8,7 +8,15 @@ const chalk = require('chalk');
 
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
+const fs = require('fs');
+const path = require('path');
+
+const writeFile = util.promisify(fs.writeFile);
+const readdir = util.promisify(fs.readdir);
 // const shell = require('shelljs');
+
+const SERVER_CFG_NAME = 'react-apollo-magic-glue-server-cfg.json';
+const CLIENT_CFG_NAME = 'react-apollo-magic-glue-client-cfg.json';
 
 commander
   .version('0.0.1')
@@ -30,12 +38,27 @@ async function addResource() {
   welcome();
   const output = await verifyConfig();
 
-  const { resourceName } = await resourceNamePrompt();
-
   const {
+    resourceName,
     shouldGenerateCollectionView,
     shouldGenerateDetailView,
-  } = await desiredViewsPrompt();
+  } = await inquirer.prompt([
+    {
+      name: 'resourceName',
+      type: 'input',
+      message: 'What is the name of your new resource? (singular form)',
+    },
+    {
+      name: 'shouldGenerateDetailView',
+      type: 'confirm',
+      message: 'Do you want a detail view for your new resource?',
+    },
+    {
+      name: 'shouldGenerateCollectionView',
+      type: 'confirm',
+      message: 'Do you want a collection view for your new resource?',
+    },
+  ]);
 
   output.name = resourceName;
 
@@ -59,61 +82,85 @@ function welcome() {
   console.log('\n');
 }
 
+/* Try to find a configuration file - generate one if it can't be found */
 async function verifyConfig() {
   const configPath = await getConfigPath();
-  return configPath ? loadConfig(configPath) : generateConfig();
+  return configPath
+    ? JSON.parse(fs.readFileSync(configPath))
+    : generateConfig();
 
   async function getConfigPath() {
-    let path;
+    let cfgPath;
     const repoPath = await getCurrentGitRepoPath();
 
     if (repoPath) {
-      path = await configSearch(repoPath);
+      cfgPath = await configSearch(repoPath);
     }
 
-    if (!path) {
-      path = await configSearch(`${process.cwd()}/`);
+    if (!cfgPath) {
+      cfgPath = await configSearch(`${process.cwd()}/`);
     }
 
-    return path;
-  }
-
-  async function loadConfig(path) {
-    // TODO Load file and parse into json object
-    console.log(path);
+    return cfgPath;
   }
 
   async function generateConfig() {
-    console.log("Can't find a valid config file. Please create one or answer the following questions in order to do so automatically:");
-    const { clientPath } = await inquirer.prompt([{
-      name: 'clientPath',
-      type: 'input',
-      message: 'What is the path to your frontend (React/Apollo Client) project?',
-    }]);
-
-    const { serverPath } = await inquirer.prompt([{
-      name: 'serverPath',
-      type: 'input',
-      message: 'What is the path to your backend (Apollo Server) project?',
-    }]);
-
-    const { generateCSSModules } = await inquirer.prompt([{
-      name: 'generateCSSModules',
-      type: 'confirm',
-      message: 'Would you like to generate CSS modules alongside your React components?',
-    }]);
-
-    const initialConfig = {
-      clientPath,
+    console.log("Can't find a valid config file. Please answer the following questions in order to create one");
+    const {
       serverPath,
+      clientPath,
+      componentPath,
+      generateCSSModules,
+    } = await inquirer.prompt([
+      {
+        name: 'clientPath',
+        type: 'input',
+        default: '.',
+        message: 'What is the path to your frontend (React/Apollo Client) project?',
+      },
+      {
+        name: 'componentPath',
+        type: 'input',
+        default: '/components',
+        message: 'What directory should React components be generated in? (relative to frontend root)',
+      },
+      {
+        name: 'serverPath',
+        type: 'input',
+        default: '.',
+        message: 'What is the path to your backend (Apollo Server) project?',
+      },
+      {
+        name: 'generateCSSModules',
+        type: 'confirm',
+        message: 'Would you like to generate CSS modules alongside your React components?',
+      },
+    ]);
+
+    const initialServerConfig = {
+      serverPath,
+      clientPath,
+      componentPath: `${componentPath}/`,
       generateCSSModules,
     };
 
-    // TODO Create config file and populate with data
+    const initialClientConfig = {
+      serverPath: path.relative(clientPath, serverPath),
+    };
 
-    return initialConfig;
+    await Promise.all([
+      writeFile(`${serverPath}/${SERVER_CFG_NAME}`, JSON.stringify(initialServerConfig)),
+      writeFile(`${clientPath}/${CLIENT_CFG_NAME}`, JSON.stringify(initialClientConfig)),
+    ]);
+
+    console.log('\n');
+    console.log('Configuration files generated');
+    console.log('\n');
+
+    return initialServerConfig;
   }
 
+  /* Get the root path of the git repo that the tool is being run in */
   async function getCurrentGitRepoPath() {
     const { stdout } = await exec('git rev-parse --git-dir').catch(() => ({ stdout: null }));
 
@@ -124,39 +171,25 @@ async function verifyConfig() {
     return stdout.replace('.git', '');
   }
 
+  /* Search for the server configuration file in the given directory */
   async function configSearch(startPath) {
-    // TODO Look in the given directory for the config file
-    console.log(startPath);
+    if (fs.existsSync(startPath)) {
+      const files = await readdir(startPath);
+      if (files.includes(SERVER_CFG_NAME)) {
+        return `${startPath}${SERVER_CFG_NAME}`;
+      }
+
+      /* If only the client config file is found, get the server path and search there */
+      if (files.includes(CLIENT_CFG_NAME)) {
+        const clientConfig = JSON.parse(fs.readFileSync(`${startPath}${CLIENT_CFG_NAME}`));
+        if (clientConfig.serverPath) {
+          return configSearch(clientConfig.serverPath);
+        }
+      }
+    }
+
+    return null;
   }
-}
-
-function resourceNamePrompt() {
-  const questions = [
-    {
-      name: 'resourceName',
-      type: 'input',
-      message: 'What is the name of your new resource? (singular form)',
-    },
-  ];
-
-  return inquirer.prompt(questions);
-}
-
-function desiredViewsPrompt() {
-  const questions = [
-    {
-      name: 'shouldGenerateDetailView',
-      type: 'confirm',
-      message: 'Do you want a detail view for your new resource?',
-    },
-    {
-      name: 'shouldGenerateCollectionView',
-      type: 'confirm',
-      message: 'Do you want a collection view for your new resource?',
-    },
-  ];
-
-  return inquirer.prompt(questions);
 }
 
 async function resourceFieldPromptLoop(output) {
