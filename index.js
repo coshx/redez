@@ -21,7 +21,7 @@ const jsonToComponents = require('./jsonToComponents');
 const SERVER_CFG_NAME = 'react-apollo-magic-glue-server-cfg.json';
 const CLIENT_CFG_NAME = 'react-apollo-magic-glue-client-cfg.json';
 
-const VIEW_TYPES = ['collection', 'detail'];
+const VIEW_TYPES = ['list', 'detail'];
 
 const DESCRIPTION = 'Easily generate endpoints for Apollo Server along with React components that retrieve and display the data';
 
@@ -212,7 +212,7 @@ async function addResource() {
   ]);
   output.name = resourceName;
 
-  const fields = await resourceFieldPromptLoop();
+  const fields = await resourceFieldPromptLoop(resourceName);
   output.views = await getViewInput(fields);
 
   console.log(output);
@@ -224,8 +224,16 @@ async function addResource() {
 * Prompt the user to enter new field information
 * until they choose to stop
 */
-async function resourceFieldPromptLoop() {
-  const fields = [];
+async function resourceFieldPromptLoop(resourceName) {
+  console.log('\n');
+  console.log(`What fields does a ${resourceName} have?`);
+  console.log('An id field has already been added for you.');
+
+  const fields = [{
+    name: 'id',
+    type: 'ID!',
+  }];
+
   let addNextField = true;
 
   while (addNextField) {
@@ -266,32 +274,42 @@ async function fieldNamePrompt() {
 }
 
 async function fieldTypePrompt() {
-  let choices = [
-    'Custom',
+  const choices = [
     'Int',
     'Float',
     'String',
     'Boolean',
     'ID',
+    'List',
+    'Custom',
   ];
-
-  const { nullable } = await inquirer.prompt([{
-    name: 'nullable',
-    type: 'confirm',
-    message: 'Is this field nullable?',
-  }]);
-
-  if (nullable) {
-    choices = choices.map(choice => `${choice}!`);
-  }
 
   let { fieldType } = await inquirer.prompt([{
     name: 'fieldType',
-    type: 'rawlist',
+    type: 'list',
     choices,
     default: 0,
     message: 'Choose the field type',
   }]);
+
+  const list = fieldType === 'List';
+  let nullable = false;
+
+  if (list) {
+    ({ fieldType } = await inquirer.prompt([{
+      name: 'fieldType',
+      type: 'list',
+      choices: choices.filter(choice => choice !== 'List'),
+      default: 0,
+      message: 'Choose the list type',
+    }]));
+  } else {
+    nullable = await inquirer.prompt([{
+      name: 'nullable',
+      type: 'confirm',
+      message: 'Is this field nullable?',
+    }]);
+  }
 
   if (fieldType === 'Custom' || fieldType === 'Custom!') {
     const answer = await inquirer.prompt([{
@@ -301,10 +319,14 @@ async function fieldTypePrompt() {
     }]);
 
     fieldType = answer.customFieldType;
+  }
 
-    if (nullable && fieldType[fieldType.length - 1] !== '!') {
-      fieldType += '!';
-    }
+  if (list) {
+    fieldType = `[${fieldType}]`;
+  }
+
+  if (nullable) {
+    fieldType += '!';
   }
 
   return fieldType.trim();
