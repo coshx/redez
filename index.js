@@ -13,6 +13,7 @@ const path = require('path');
 
 const writeFile = util.promisify(fs.writeFile);
 const readdir = util.promisify(fs.readdir);
+const jsonToComponents = require('./jsonToComponents');
 // const shell = require('shelljs');
 
 const SERVER_CFG_NAME = 'react-apollo-magic-glue-server-cfg.json';
@@ -73,6 +74,7 @@ async function addResource() {
   await resourceFieldPromptLoop(output);
 
   console.log(output);
+  jsonToComponents(output);
 }
 
 function welcome() {
