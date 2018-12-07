@@ -266,31 +266,48 @@ async function fieldNamePrompt() {
 }
 
 async function fieldTypePrompt() {
+  let choices = [
+    'Custom',
+    'Int',
+    'Float',
+    'String',
+    'Boolean',
+    'ID',
+  ];
+
+  const { nullable } = await inquirer.prompt([{
+    name: 'nullable',
+    type: 'confirm',
+    message: 'Is this field nullable?',
+  }]);
+
+  if (nullable) {
+    choices = choices.map(choice => `${choice}!`);
+  }
+
   let { fieldType } = await inquirer.prompt([{
     name: 'fieldType',
     type: 'rawlist',
-    choices: [
-      'Int',
-      'Float',
-      'String',
-      'Boolean',
-      'ID',
-      'Custom',
-    ],
+    choices,
     default: 0,
     message: 'Choose the field type',
   }]);
 
-  if (fieldType === 'Custom') {
+  if (fieldType === 'Custom' || fieldType === 'Custom!') {
     const answer = await inquirer.prompt([{
       name: 'customFieldType',
       type: 'input',
       message: 'Enter your custom type name:',
     }]);
+
     fieldType = answer.customFieldType;
+
+    if (nullable && fieldType[fieldType.length - 1] !== '!') {
+      fieldType += '!';
+    }
   }
 
-  return fieldType;
+  return fieldType.trim();
 }
 
 
