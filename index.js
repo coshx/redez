@@ -14,7 +14,7 @@ const path = require('path');
 
 const writeFile = util.promisify(fs.writeFile);
 const readdir = util.promisify(fs.readdir);
-const jsonToComponents = require('./jsonToComponents');
+// const jsonToComponents = require('./jsonToComponents');
 // const shell = require('shelljs');
 
 // ** Constants
@@ -34,7 +34,7 @@ commander
   .command('generate')
   .alias('g')
   .description('Add a new resource with corresponding endpoints and views')
-  .action(addResource);
+  .action(generate);
 
 commander
   .command('*', { noHelp: true })
@@ -194,12 +194,20 @@ async function generateConfig() {
 }
 
 // ** Generate Command
+async function generate() {
+  const output = await init();
+  const { resources } = await addResource();
+  output.resources = resources;
+  console.log(output);
+}
+
 /**
  * Add a resource by adding a type to the generated schema
  * and generating any necessary views (React components)
  */
 async function addResource() {
-  const output = await init();
+  const resources = [];
+  const resource = {};
 
   const {
     resourceName,
@@ -210,13 +218,16 @@ async function addResource() {
       message: 'What is the name of your new resource? (singular form)',
     },
   ]);
-  output.name = resourceName;
+  resource.name = resourceName;
 
-  const fields = await resourceFieldPromptLoop(resourceName);
-  output.views = await getViewInput(fields);
+  const fields = await resourceFieldPromptLoop(resourceName, resources);
+  resource.views = await getViewInput(fields);
 
-  console.log(output);
-  jsonToComponents(output);
+  resources.push(resource);
+
+  console.log('Resource created! \n');
+
+  return { resources, resourceName };
 }
 
 // *** Add fields
@@ -224,7 +235,7 @@ async function addResource() {
 * Prompt the user to enter new field information
 * until they choose to stop
 */
-async function resourceFieldPromptLoop(resourceName) {
+async function resourceFieldPromptLoop(resourceName, resources) {
   console.log('\n');
   console.log(`What fields does a ${resourceName} have?`);
   console.log('An id field has already been added for you.');
@@ -241,7 +252,7 @@ async function resourceFieldPromptLoop(resourceName) {
 
     const fieldData = {
       name: await fieldNamePrompt(),
-      type: await fieldTypePrompt(),
+      type: await fieldTypePrompt(resources),
     };
 
     fields.push(fieldData);
@@ -273,7 +284,7 @@ async function fieldNamePrompt() {
   return answer.fieldName;
 }
 
-async function fieldTypePrompt() {
+async function fieldTypePrompt(resourceList) {
   const choices = [
     'Int',
     'Float',
@@ -312,13 +323,10 @@ async function fieldTypePrompt() {
   }
 
   if (fieldType === 'Custom' || fieldType === 'Custom!') {
-    const answer = await inquirer.prompt([{
-      name: 'customFieldType',
-      type: 'input',
-      message: 'Enter your custom type name:',
-    }]);
+    const { resources, resourceName } = await addResource();
+    resources.forEach(r => resourceList.push(r));
 
-    fieldType = answer.customFieldType;
+    fieldType = resourceName;
   }
 
   if (list) {
