@@ -1,6 +1,9 @@
 # react-apollo-magic-glue
 Easily generate endpoints for Apollo Server along with React components that retrieve and display the data
 
+# Usage
+
+# Development
 ## Run locally
 `cd react-apollo-magic-glue`
 
@@ -39,22 +42,16 @@ Used to generate a new resource which will be automatically added to the GraphQL
 Output format:
 ```javascript
 {
-  resources: [resource] //An array of resources that were requested by the command
+  resources: [Resource] //An array of resources that were requested by the command
 }
 
-//resource
+//Resource
 { 
-  name: String //Resource name
-  fields: [field] //All fields that belong to the resource
-  views: { //There will be a key in this object for each view (React component) that should be generated
-    viewType: [field] //Each key has an array of fields that should be included in the view
-  }
-}
-
-//field
-{
   name: String
-  type: String
+  type: [GraphQLObjectType]
+  views: { //There will be a key in this object for each view (React component) that should be generated
+    viewType: [String] //Each key has an array of field names that should be included in the view
+  }
 }
 ```
 (Probably beneficial to use typescript here so that this does not need documentation)

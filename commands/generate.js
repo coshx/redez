@@ -1,4 +1,16 @@
 const inquirer = require('inquirer');
+const graphql = require('graphql');
+
+const GRAPHQL_FIELD_TYPES = {
+  Int: graphql.GraphQLInt,
+  Float: graphql.GraphQLFloat,
+  String: graphql.GraphQLString,
+  Boolean: graphql.GraphQLBoolean,
+  ID: graphql.GraphQLID,
+};
+
+const VIEW_TYPES = ['list', 'detail'];
+
 
 // ** Generate Command
 export default async function generate(config) {
@@ -13,9 +25,6 @@ export default async function generate(config) {
  * and generating any necessary views (React components)
  */
 async function addResource() {
-  const resources = [];
-  const resource = {};
-
   const {
     resourceName,
   } = await inquirer.prompt([
@@ -25,16 +34,27 @@ async function addResource() {
       message: 'What is the name of your new resource? (singular form)',
     },
   ]);
-  resource.name = resourceName;
 
-  resource.fields = await resourceFieldPromptLoop(resourceName, resources);
-  resource.views = await getViewInput(resource.fields);
+
+  const resources = [];
+  const fields = await resourceFieldPromptLoop(resourceName, resources);
+
+  const resource = {};
+  resource.name = resourceName;
+  resource.type = graphql.GraphQLObjectType({
+    name: resourceName,
+    fields,
+  });
+
+
+  const fieldNames = Object.keys(resource.fields);
+  resource.views = await getViewInput(fieldNames);
 
   resources.push(resource);
 
   console.log('Resource created! \n');
 
-  return { resources, resourceName };
+  return { resources, resource };
 }
 
 // *** Add fields
@@ -47,29 +67,25 @@ async function resourceFieldPromptLoop(resourceName, resources) {
   console.log(`What fields does a ${resourceName} have?`);
   console.log('An id field has already been added for you.');
 
-  const fields = [{
-    name: 'id',
-    type: 'ID!',
-  }];
+  const fieldTypes = {
+    id: { type: graphql.GraphQLID, nullable: false },
+  };
 
   let addNextField = true;
 
   while (addNextField) {
     console.log('\n');
 
-    const fieldData = {
-      name: await fieldNamePrompt(),
-      type: await fieldTypePrompt(resources),
-    };
+    const name = await fieldNamePrompt();
+    const type = await fieldTypePrompt(resources);
+    fieldTypes[name] = type;
 
-    fields.push(fieldData);
-
-    addNextField = await nextFieldPrompt(fields.length);
+    addNextField = await nextFieldPrompt(fieldTypes.length);
   }
 
   console.log('\n');
 
-  return fields;
+  return fieldTypes;
 }
 
 async function nextFieldPrompt(fieldCount) {
@@ -92,17 +108,9 @@ async function fieldNamePrompt() {
 }
 
 async function fieldTypePrompt(resourceList) {
-  const choices = [
-    'Int',
-    'Float',
-    'String',
-    'Boolean',
-    'ID',
-    'List',
-    'Resource',
-  ];
+  const choices = [...Object.keys(GRAPHQL_FIELD_TYPES), 'Resource'];
 
-  let { fieldType } = await inquirer.prompt([{
+  const { typeName } = await inquirer.prompt([{
     name: 'fieldType',
     type: 'list',
     choices,
@@ -110,41 +118,40 @@ async function fieldTypePrompt(resourceList) {
     message: 'Choose the field type',
   }]);
 
-  const list = fieldType === 'List';
-  let nullable = false;
+  let fieldType = GRAPHQL_FIELD_TYPES[typeName];
+
+  const list = typeName === 'List';
 
   if (list) {
-    ({ fieldType } = await inquirer.prompt([{
-      name: 'fieldType',
+    const { listType } = await inquirer.prompt([{
+      name: 'listType',
       type: 'list',
       choices: choices.filter(choice => choice !== 'List'),
       default: 0,
       message: 'Choose the list type',
-    }]));
+    }]);
+
+    fieldType = graphql.GraphQLList(GRAPHQL_FIELD_TYPES[listType]);
   } else {
-    nullable = await inquirer.prompt([{
+    const nonNull = await inquirer.prompt([{
       name: 'nullable',
       type: 'confirm',
-      message: 'Is this field nullable?',
+      message: 'Is this field required to be non-null?',
     }]);
+
+    if (nonNull) {
+      fieldType = graphql.GraphQLNonNull(fieldType);
+    }
   }
 
   if (fieldType === 'Resource') {
-    const { resources, resourceName } = await addResource();
+    const { resources, resource } = await addResource();
     resources.forEach(r => resourceList.push(r));
 
-    fieldType = resourceName;
+    fieldType = resource.type;
   }
 
-  if (list) {
-    fieldType = `[${fieldType}]`;
-  }
-
-  if (nullable) {
-    fieldType += '!';
-  }
-
-  return fieldType.trim();
+  return fieldType;
 }
 
 
@@ -154,7 +161,7 @@ async function fieldTypePrompt(resourceList) {
 * which fields should be displayed in those views,
 * and which fields should be used as query params for each view
 */
-async function getViewInput(fields) {
+async function getViewInput(fieldNames) {
   const views = {};
 
   // eslint-disable-next-line
@@ -177,11 +184,11 @@ async function getViewInput(fields) {
           name: 'viewFieldNames',
           type: 'checkbox',
           message: `Which fields should be included in the ${viewType} view?`,
-          choices: fields.map(f => f.name),
+          choices: fieldNames,
         },
       ]);
 
-      views[viewType].fields = fields.filter(f => viewFieldNames.includes(f.name));
+      views[viewType].fieldNames = fieldNames.filter(f => viewFieldNames.includes(f.name));
     }
   }
 
