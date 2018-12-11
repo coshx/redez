@@ -1,6 +1,6 @@
 import { React, Component } from 'react';
 
-class $[name]Detail extends Component {
+class ${name}Detail extends Component {
 
   constructor(props) {
     super(props);
@@ -9,8 +9,8 @@ class $[name]Detail extends Component {
   render() {
     return (
       <View>
-        $[fields]
+        ${fields}
       </View>
     )
   }
-} 
+}
