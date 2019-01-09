@@ -1,4 +1,4 @@
-# react-apollo-magic-glue
+# Redez Server
 Easily generate endpoints for Apollo Server along with React components that retrieve and display the data
 
 # Usage

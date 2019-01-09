@@ -1,7 +1,7 @@
 {
-  "name": "react-apollo-magic-glue",
+  "name": "redez-server",
   "version": "0.0.1",
-  "description": "CLI tool for generating React components in tandem with an Apollo Server schema",
+  "description": "The development server for Redez, a graphical tool for editing React apps",
   "main": "index.js",
   "author": "Coshx Labs",
   "license": "MIT",
@@ -14,12 +14,17 @@
     "graphql"
   ],
   "preferGlobal": true,
-  "bin": "./index.js",
+  "bin": "./src/index.js",
   "dependencies": {
+    "@babel/parser": "^7.2.3",
+    "apollo-server": "^2.3.1",
     "chalk": "^2.4.1",
     "commander": "^2.19.0",
     "figlet": "^1.2.1",
+    "graphql": "^14.0.2",
     "inquirer": "^6.2.0",
+    "js-beautify": "^1.8.9",
+    "lodash": "^4.17.11",
     "shelljs": "^0.8.3"
   },
   "devDependencies": {
@@ -31,7 +36,6 @@
     "eslint-plugin-jsx-a11y": "^6.1.2",
     "eslint-plugin-react": "^7.11.1",
     "jest": "^23.6.0",
-    "js-beautify": "^1.8.8",
     "tern": "^0.23.0"
   },
   "scripts": {
