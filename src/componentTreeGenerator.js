@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const util = require('util');
 
+const exists = util.promisify(fs.exists);
 const readfile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 const mkdir = util.promisify(fs.mkdir);
@@ -127,13 +128,8 @@ async function getComponentPathsInDirectory(dirPath) {
 }
 
 async function fileIsComponent(filePath) {
-  const fileName = path.basename(filePath);
-  const splitName = fileName.split('.');
-  if (splitName.length < 2) {
-    return false;
-  }
+  const ext = getFileExt(filePath);
 
-  const ext = splitName[1];
   if (ext !== 'js' && ext !== 'jsx') {
     return false;
   }
@@ -151,6 +147,15 @@ async function fileIsComponent(filePath) {
   }
 }
 
+function getFileExt(filePath) {
+  const splitName = path.basename(filePath).split('.');
+  if (splitName.length < 2) {
+    return null;
+  }
+
+  return splitName[splitName.length - 1];
+}
+
 async function logAST(componentName, ast, config) {
   const logPath = path.join(config.clientPath, path.join('.redez', 'logs'));
   const ASTLogPath = path.join(logPath, 'componentASTs');
@@ -166,17 +171,42 @@ async function logAST(componentName, ast, config) {
   writeFile(path.join(ASTLogPath, `${componentName}.json`), ASTBuffer);
 }
 
-function getPotentialChildComponents(AST) {
+async function getPotentialChildComponents(AST) {
   const fileBody = AST.program.body;
   const componentDeclaration = getDefaultExportDeclaration(fileBody);
   const potentiallyRenderedElements = getPotentiallyRenderedElements(componentDeclaration);
   const localImports = getLocalImports(fileBody);
 
   const childComponentPaths = localImports.reduce((paths, importDeclaration) => {
-    // We expect single file componentPathToAST, so they will be imported using a default specifier
+    // We expect single file component, so they will be imported using a default specifier
     const defaultSpecifier = importDeclaration.specifiers.filter(specifier => specifier.type === 'ImportDefaultSpecifier');
     if (defaultSpecifier && defaultSpecifier.local.name in potentiallyRenderedElements) {
-      return [...paths, importDeclaration.source.value];
+      const importSourcePath = importDeclaration.source.value;
+      const ext = getFileExt(importSourcePath);
+
+      let componentPath = importSourcePath;
+
+      // Component imports often leave off the file extension
+      // Check for a file with either a js or jsx extension
+      if (!ext) {
+        const jsFilePath = `${componentPath}.js`;
+        const jsxFilePath = `${componentPath}.jsx`;
+
+        const [jsFileExists, jsxFileExists] = Promise.all([
+          exists(jsFilePath),
+          exists(jsxFilePath),
+        ]);
+
+        if (jsFileExists) {
+          componentPath = jsFilePath;
+        } else if (jsxFileExists) {
+          componentPath = jsxFilePath;
+        } else {
+          return paths;
+        }
+      }
+
+      return [...paths, componentPath];
     }
 
     return paths;
