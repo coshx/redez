@@ -53,7 +53,8 @@ async function init() {
 
   const config = verifyConfig();
   return Object.assign({}, config, {
-    rootComponentPath: path.join(config.clientPath, config.rootComponentPath),
+    srcPath: path.join(config.clientPath, config.srcPath),
+    rootComponentPath: path.join(config.srcPath, config.rootComponentPath),
   });
 }
 

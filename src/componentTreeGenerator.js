@@ -34,7 +34,7 @@ async function generateComponentTrees(config) {
     rootComponentTree,
     allComponentPaths,
   ] = await Promise.all([
-    generateComponentTree(path.join(config.srcPath, config.rootComponentPath), config),
+    generateComponentTree(config.rootComponentPath, config),
     getComponentPathsInProjectSrc(config),
   ]);
 
@@ -85,13 +85,11 @@ async function getFileAST(filePath) {
 }
 
 async function getComponentPathsInProjectSrc(config) {
-  const srcPath = path.join(config.clientPath, config.srcPath);
-
   try {
-    return await getComponentPathsInDirectory(srcPath);
+    return await getComponentPathsInDirectory(config.srcPath);
   } catch (err) {
     console.error(err);
-    throw new Error(`Error reading source directory: ${srcPath}`);
+    throw new Error(`Error reading source directory: ${config.srcPath}`);
   }
 }
 
@@ -354,6 +352,7 @@ module.exports = {
   generateComponentTree,
   getComponentPathsInProjectSrc,
   getComponentPathsInDirectory,
+  getFileExt,
   fileIsComponent,
   getPotentialChildComponents,
   getDefaultExportDeclaration,
