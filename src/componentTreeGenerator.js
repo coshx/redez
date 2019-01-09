@@ -33,7 +33,7 @@ async function generateComponentTrees(config) {
     rootComponentTree,
     allComponentPaths,
   ] = await Promise.all([
-    generateComponentTree(config.rootComponentPath, config),
+    generateComponentTree(path.join(config.srcPath, config.rootComponentPath), config),
     getComponentPathsInProjectSrc(config),
   ]);
 

@@ -69,7 +69,7 @@ async function verifyConfig() {
   return configPath ? Object.assign(
     JSON.parse(fs.readFileSync(configPath)),
     { clientPath: path.resolve(configPath, '../..') },
-  ) : generateConfig()
+  ) : generateConfig();
 }
 
 /**
@@ -148,6 +148,7 @@ async function generateConfig() {
   console.log("Can't find a valid config file. Please answer the following questions in order to create one");
   const {
     clientPath,
+    srcPath,
     rootComponentPath,
     serverPath,
   } = await inquirer.prompt([
@@ -158,10 +159,16 @@ async function generateConfig() {
       message: 'What is the path to your frontend (React/Apollo Client) project?',
     },
     {
+      name: 'srcPath',
+      type: 'input',
+      default: './src',
+      message: 'What is the relative path to the source directory of your app?',
+    },
+    {
       name: 'rootComponentPath',
       type: 'input',
       default: './App.js',
-      message: 'What is the relative path to the root component of your app?',
+      message: 'What is the path to the root component of your app relative to the soruce directory?',
     },
     {
       name: 'serverPath',
@@ -178,6 +185,7 @@ async function generateConfig() {
   const initialClientConfig = {
     clientPath: path.resolve(clientPath),
     serverPath: path.relative(clientPath, serverPath),
+    srcPath,
     rootComponentPath,
   };
 
