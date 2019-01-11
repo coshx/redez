@@ -1,6 +1,8 @@
 const babelParser = require('@babel/parser');
 const beautify = require('js-beautify').js;
-const { clone, findIndex } = require('lodash');
+const {
+  clone, flatten, find, findIndex,
+} = require('lodash');
 
 const path = require('path');
 const fs = require('fs');
@@ -30,23 +32,22 @@ async function generateComponentTrees(config) {
     process.exit();
   }
 
+  const componentPathToTree = {};
+
   const [
     rootComponentTree,
     allComponentPaths,
   ] = await Promise.all([
-    generateComponentTree(config.rootComponentPath, config),
+    generateComponentTree(config.rootComponentPath, config, componentPathToTree),
     getComponentPathsInProjectSrc(config),
   ]);
 
   const trees = [rootComponentTree];
-  const componentPathToTree = {
-    [rootComponentTree.path]: rootComponentTree,
-  };
 
   for (let i = 0; i < allComponentPaths.length; i += 1) {
     const componentPath = allComponentPaths[i];
     if (!(componentPath in componentPathToTree)) {
-      const componentTree = await generateComponentTree(componentPath, config);
+      const componentTree = await generateComponentTree(componentPath, config, componentPathToTree);
       componentPathToTree[componentTree.path] = componentTree;
 
       trees.push(componentTree);
@@ -56,18 +57,31 @@ async function generateComponentTrees(config) {
   return trees;
 }
 
-async function generateComponentTree(componentPath, config) {
+async function generateComponentTree(componentPath, config, componentPathToTree) {
   try {
     const AST = await getFileAST(componentPath);
     const componentName = path.basename(componentPath).split('.')[0];
     logAST(componentName, AST, config);
 
-    return {
+    const childPaths = await getChildComponentPaths(AST, componentPath);
+
+    const tree = {
       path: componentPath,
       name: componentName,
       ast: AST,
-      children: await getPotentialChildComponents(AST),
+      children: await Promise.all(
+        childPaths.map(childPath => generateComponentTree(
+          childPath,
+          config,
+          componentPathToTree,
+        )),
+      ),
     };
+
+    // eslint-disable-next-line
+    componentPathToTree[tree.path] = tree;
+
+    return tree;
   } catch (err) {
     console.error(err);
     throw new Error(`Error parsing component at ${componentPath}`);
@@ -114,13 +128,13 @@ async function getComponentPathsInDirectory(dirPath) {
       return updated;
     }));
 
-  const [pathsFromSubdirs, updatedFileMetadata] = Promise.all([
+  const [pathsFromSubdirs, updatedFileMetadata] = await Promise.all([
     fetchPathsFromSubdirectories,
     flagComponentsInCurrentDirectory,
   ]);
 
   return [
-    ...pathsFromSubdirs,
+    ...flatten(pathsFromSubdirs),
     ...updatedFileMetadata.filter(meta => meta.isComponent).map(meta => meta.path),
   ];
 }
@@ -137,7 +151,7 @@ async function fileIsComponent(filePath) {
 
     const defaultExportDeclaration = getDefaultExportDeclaration(AST.program.body);
     const renderBlock = getComponentRenderBlock(defaultExportDeclaration);
-    const returnStatement = renderBlock.find(node => node.type === 'ReturnStatement');
+    const returnStatement = find(renderBlock.body, node => node.type === 'ReturnStatement');
 
     return returnStatement.argument && returnStatement.argument.type === 'JSXElement';
   } catch (err) {
@@ -169,49 +183,56 @@ async function logAST(componentName, ast, config) {
   writeFile(path.join(ASTLogPath, `${componentName}.json`), ASTBuffer);
 }
 
-async function getPotentialChildComponents(AST) {
+async function getChildComponentPaths(AST, componentPath) {
   const fileBody = AST.program.body;
   const componentDeclaration = getDefaultExportDeclaration(fileBody);
-  const potentiallyRenderedElements = getPotentiallyRenderedElements(componentDeclaration);
-  const localImports = getLocalImports(fileBody);
 
-  const childComponentPaths = localImports.reduce((paths, importDeclaration) => {
+  const potentiallyRenderedElements = getPotentiallyRenderedElements(componentDeclaration);
+  const renderedElementNames = {};
+  potentiallyRenderedElements.forEach((elem) => {
+    renderedElementNames[elem.openingElement.name.name] = true;
+  });
+
+  const localImports = getLocalImports(fileBody);
+  const childComponentPaths = [];
+
+  for (let i = 0; i < localImports.length; i += 1) {
+    const importDeclaration = localImports[i];
+
     // We expect single file component, so they will be imported using a default specifier
-    const defaultSpecifier = importDeclaration.specifiers.filter(specifier => specifier.type === 'ImportDefaultSpecifier');
-    if (defaultSpecifier && defaultSpecifier.local.name in potentiallyRenderedElements) {
+    const defaultSpecifier = find(importDeclaration.specifiers, (specifier => specifier.type === 'ImportDefaultSpecifier'));
+    if (defaultSpecifier && defaultSpecifier.local.name in renderedElementNames) {
       const importSourcePath = importDeclaration.source.value;
       const ext = getFileExt(importSourcePath);
 
-      let componentPath = importSourcePath;
+      const childPath = path.resolve(path.dirname(componentPath), importSourcePath);
 
       // Component imports often leave off the file extension
       // Check for a file with either a js or jsx extension
       if (!ext) {
-        const jsFilePath = `${componentPath}.js`;
-        const jsxFilePath = `${componentPath}.jsx`;
+        const jsFilePath = `${childPath}.js`;
+        const jsxFilePath = `${childPath}.jsx`;
 
-        const [jsFileExists, jsxFileExists] = Promise.all([
+        const [jsFileExists, jsxFileExists] = await Promise.all([
           exists(jsFilePath),
           exists(jsxFilePath),
         ]);
 
         if (jsFileExists) {
-          componentPath = jsFilePath;
+          childComponentPaths.push(jsFilePath);
         } else if (jsxFileExists) {
-          componentPath = jsxFilePath;
-        } else {
-          return paths;
+          childComponentPaths.push(jsxFilePath);
+        }
+      } else {
+        const fileExists = await exists(childPath);
+        if (fileExists) {
+          childComponentPaths.push(childPath);
         }
       }
-
-      return [...paths, componentPath];
     }
+  }
 
-    return paths;
-  }, []);
-
-  // Recursively get the component tree for each potential child component
-  return Promise.all(childComponentPaths.map(childPath => generateComponentTree(childPath)));
+  return childComponentPaths;
 }
 
 function getDefaultExportDeclaration(fileBody) {
@@ -223,7 +244,8 @@ function getDefaultExportDeclaration(fileBody) {
   const defaultExportDeclaration = fileBody[defaultExportDeclarationIndex];
   const id = defaultExportDeclaration.declaration.name;
 
-  return findDeclaration(fileBody.slice(defaultExportDeclarationIndex), id);
+  const bodyBeforeExport = fileBody.slice(0, defaultExportDeclarationIndex);
+  return findDeclaration(bodyBeforeExport, id);
 }
 
 /**
@@ -231,17 +253,17 @@ function getDefaultExportDeclaration(fileBody) {
 * @param {id} the id of the declaration to look for
 * @returns {object} returns a declaration with the given id
 */
-function findDeclaration(body, id) {
+function findDeclaration(body, idName) {
   for (let i = body.length - 1; i > 0; i -= 1) {
     const node = body[i];
     if (node.declarations) {
       for (let j = 0; j < node.declarations.length; j += 1) {
-        if (node.declarations[j].id === id) {
+        if (node.declarations[j].id.name === idName) {
           return node;
         }
       }
     } else if (node.id) {
-      if (node.id === id) {
+      if (node.id.name === idName) {
         return node;
       }
     }
@@ -264,7 +286,7 @@ function getPotentiallyRenderedElements(componentDeclaration) {
     References to variables containing jsx and conditional returns will not be parsed properly
   */
   const renderBlock = getComponentRenderBlock(componentDeclaration);
-  const returnStatement = renderBlock.find(node => node.type === 'ReturnStatement');
+  const returnStatement = find(renderBlock.body, node => node.type === 'ReturnStatement');
   const rootElement = returnStatement.argument;
 
   if (!rootElement) {
@@ -318,17 +340,19 @@ function getRenderBlockFromVariableDeclaration(componentDeclaration) {
   if (declarators.length !== 1) {
     throw new Error('Expected component declaration to have a single VariableDeclarator if it is a VariableDeclaration');
   }
+  return declarators[0].init.body;
 }
 
 function flattenJSXTree(node) {
   const allElements = [];
   if (node.type === 'JSXElement') {
     allElements.push(node);
+
+    node.children.forEach((child) => {
+      allElements.push(...flattenJSXTree(child));
+    });
   }
 
-  node.children.forEach((child) => {
-    allElements.push(...flattenJSXTree(child));
-  });
 
   return allElements;
 }
@@ -350,11 +374,12 @@ function getLocalImports(fileBody) {
 module.exports = {
   generateComponentTrees,
   generateComponentTree,
+  getFileAST,
   getComponentPathsInProjectSrc,
   getComponentPathsInDirectory,
   getFileExt,
   fileIsComponent,
-  getPotentialChildComponents,
+  getChildComponentPaths,
   getDefaultExportDeclaration,
   findDeclaration,
   getPotentiallyRenderedElements,
