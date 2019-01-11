@@ -1,3 +1,4 @@
 templates/
 output/
 node_modules/
+test-input/
