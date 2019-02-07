@@ -34,15 +34,8 @@ async function generateComponentTrees(config) {
 
   const componentPathToTree = {};
 
-  const [
-    rootComponentTree,
-    allComponentPaths,
-  ] = await Promise.all([
-    generateComponentTree(config.rootComponentPath, config, componentPathToTree),
-    getComponentPathsInProjectSrc(config),
-  ]);
-
-  const trees = [rootComponentTree];
+  const allComponentPaths = await getComponentPathsInProjectSrc(config);
+  const trees = [];
 
   for (let i = 0; i < allComponentPaths.length; i += 1) {
     const componentPath = allComponentPaths[i];
@@ -50,7 +43,10 @@ async function generateComponentTrees(config) {
       const componentTree = await generateComponentTree(componentPath, config, componentPathToTree);
       componentPathToTree[componentTree.path] = componentTree;
 
-      trees.push(componentTree);
+      trees.push({
+        id: trees.length,
+        data: JSON.stringify(componentTree),
+      });
     }
   }
 
@@ -68,7 +64,7 @@ async function generateComponentTree(componentPath, config, componentPathToTree)
     const tree = {
       path: componentPath,
       name: componentName,
-      ast: AST,
+      // ast: JSON.stringify(AST),
       children: await Promise.all(
         childPaths.map(childPath => generateComponentTree(
           childPath,

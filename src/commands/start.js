@@ -9,15 +9,13 @@ async function start(config) {
   async function startServer() {
     // ** GraphQL Schema
     const typeDefs = gql`
-      type Component {
+      type ComponentTree {
         id: ID!
-        componentCode: String!
-        children: [Component]
+        data: String!
       }
 
       type Query {
-        generateComponentTrees: [Component]
-        getComponent: Component
+        generateComponentTrees: [ComponentTree]
       }`;
 
     // ** Resolvers
@@ -28,9 +26,9 @@ async function start(config) {
           return componentTrees;
         },
       },
-      Component: {
-        children(component) {
-          return component.children;
+      ComponentTree: {
+        data(component) {
+          return component.data;
         },
       },
     };

@@ -51,7 +51,8 @@ async function init() {
   console.log(chalk.green('Redez'));
   console.log('\n');
 
-  const config = verifyConfig();
+  const config = await verifyConfig();
+  console.log(config);
   return Object.assign({}, config, {
     srcPath: path.join(config.clientPath, config.srcPath),
     rootComponentPath: path.join(config.srcPath, config.rootComponentPath),
@@ -169,7 +170,7 @@ async function generateConfig() {
       name: 'rootComponentPath',
       type: 'input',
       default: './App.js',
-      message: 'What is the path to the root component of your app relative to the soruce directory?',
+      message: 'What is the path to the root component of your app relative to the source directory?',
     },
     {
       name: 'serverPath',
