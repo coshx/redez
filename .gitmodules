@@ -1,0 +1,3 @@
+[submodule "redez-client"]
+	path = redez-client
+	url = https://github.com/coshx/redez-client.git
