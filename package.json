@@ -1,5 +1,5 @@
 {
-  "name": "redez-server",
+  "name": "redez",
   "version": "0.0.1",
   "description": "The development server for Redez, a graphical tool for editing React apps",
   "main": "index.js",

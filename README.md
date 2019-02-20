@@ -16,6 +16,7 @@ Run the start command inside a React project
 ## Project Structure
  - `index.js` defines all possible commands that can be run
  - `/commands` contains all command definitions
+ - `/init` initializes redez by loading configuration files and starting the editor in the target project
  - `componentTreeGenerator.js` - generates component trees from the target project
  
 ## Configuration Files
