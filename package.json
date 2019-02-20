@@ -25,6 +25,7 @@
     "inquirer": "^6.2.0",
     "js-beautify": "^1.8.9",
     "lodash": "^4.17.11",
+    "ncp": "^2.0.0",
     "shelljs": "^0.8.3"
   },
   "devDependencies": {

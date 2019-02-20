@@ -33,8 +33,6 @@ async function start(config) {
       },
     };
 
-    console.log(`Starting server with config: ${JSON.stringify(config)}`);
-    console.log('\n');
     const server = new ApolloServer({ typeDefs, resolvers });
     const { url } = await server.listen();
     console.log(`🚀  Redez Server ready at ${url}`);
