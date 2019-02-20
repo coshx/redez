@@ -4,7 +4,7 @@
 const commander = require('commander');
 
 const start = require('./commands/start');
-const init = require('./init');
+const init = require('./init/init');
 
 // ** Constants
 const DESCRIPTION = 'Easily generate endpoints for Apollo Server along with React components that retrieve and display the data';
