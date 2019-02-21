@@ -15,6 +15,8 @@ const mkdir = util.promisify(fs.mkdir);
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
 
+let componentPathToTree = {};
+
 /**
 * Generate a component tree for the root component of the target app (the entry point),
 * and then generate component trees for any components in the app's src directory that were not
@@ -29,37 +31,46 @@ async function generateComponentTrees(config) {
   const validRootComponent = await fileIsComponent(config.rootComponentPath);
   if (!validRootComponent) {
     console.error('Cannot recognize given root component as a React component');
-    process.exit();
+    process.exit(1);
   }
 
-  const componentPathToTree = {};
+  componentPathToTree = {};
 
   const allComponentPaths = await getComponentPathsInProjectSrc(config);
-  const trees = [];
 
   for (let i = 0; i < allComponentPaths.length; i += 1) {
     const componentPath = allComponentPaths[i];
-    if (!(componentPath in componentPathToTree)) {
-      const componentTree = await generateComponentTree(componentPath, config, componentPathToTree);
-      componentPathToTree[componentTree.path] = componentTree;
-
-      trees.push({
-        id: trees.length,
-        data: JSON.stringify(componentTree),
-      });
-    }
+    await generateComponentTree(componentPath, config);
   }
 
-  return trees;
+  // Return only the trees that are not subtrees
+  return Object.keys(componentPathToTree)
+    .map(key => componentPathToTree[key])
+    .filter(val => val.root)
+    .map((val, idx) => ({
+      id: idx,
+      data: JSON.stringify(val.tree),
+    }));
 }
 
-async function generateComponentTree(componentPath, config, componentPathToTree) {
+async function generateComponentTree(componentPath, config) {
+  if (componentPath in componentPathToTree) {
+    componentPathToTree[componentPath].root = false;
+    return componentPathToTree[componentPath].tree;
+  }
+
   try {
     const AST = await getFileAST(componentPath);
     const componentName = path.basename(componentPath).split('.')[0];
     logAST(componentName, AST, config);
 
     const childPaths = await getChildComponentPaths(AST, componentPath);
+
+    childPaths.forEach((childPath) => {
+      if (childPath in componentPathToTree) {
+        componentPathToTree[childPath].root = false;
+      }
+    });
 
     const tree = {
       path: componentPath,
@@ -69,13 +80,11 @@ async function generateComponentTree(componentPath, config, componentPathToTree)
         childPaths.map(childPath => generateComponentTree(
           childPath,
           config,
-          componentPathToTree,
         )),
       ),
     };
 
-    // eslint-disable-next-line
-    componentPathToTree[tree.path] = tree;
+    componentPathToTree[tree.path] = { tree, root: true };
 
     return tree;
   } catch (err) {
