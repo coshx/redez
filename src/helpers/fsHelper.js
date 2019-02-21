@@ -41,6 +41,16 @@ async function findFile(filename, dir, exclude) {
     )).concat(Promise.all(resultPromises).then(() => null))); // Handle case where no file is found
 }
 
+function getFileExt(filePath) {
+  const splitName = path.basename(filePath).split('.');
+  if (splitName.length < 2) {
+    return null;
+  }
+
+  return splitName[splitName.length - 1];
+}
+
 module.exports = {
   findFile,
+  getFileExt,
 };

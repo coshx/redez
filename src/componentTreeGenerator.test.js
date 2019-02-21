@@ -7,7 +7,6 @@ const {
   getFileAST,
   getComponentPathsInProjectSrc,
   getComponentPathsInDirectory,
-  getFileExt,
   fileIsComponent,
   getChildComponentPaths,
   getDefaultExportDeclaration,
@@ -99,16 +98,6 @@ describe('componentTreeGenerator', () => {
       expect(await fileIsComponent(path.resolve(testConfig.srcPath, './components/TestPureComponent.jsx'))).toBe(true);
       expect(await fileIsComponent(path.resolve(testConfig.srcPath, './components/TestAnonComponent.jsx'))).toBe(true);
       expect(await fileIsComponent(path.resolve(testConfig.srcPath, './helpers/TestHelper.js'))).toBe(false);
-    });
-  });
-
-  describe('getFileExt', () => {
-    test('returns the file extension if the file at the given path', () => {
-      expect(getFileExt('../test-input/src/App.jsx')).toBe('jsx');
-    });
-
-    test('returns null if the file / directory at the given path does not have an extension', () => {
-      expect(getFileExt('../test-input/file')).toBe(null);
     });
   });
 

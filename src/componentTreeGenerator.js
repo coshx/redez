@@ -15,6 +15,8 @@ const mkdir = util.promisify(fs.mkdir);
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
 
+const { getFileExt } = require('./helpers/fsHelper');
+
 let componentPathToTree = {};
 
 /**
@@ -22,8 +24,7 @@ let componentPathToTree = {};
 * and then generate component trees for any components in the app's src directory that were not
 * included in any previously generated trees
 *
-* @param {string} The absolute path to the source directory
-* of the target app where all components should reside
+* @param {object} config Redez configuration object
 *
 * @returns {Array} An array of component trees
 */
@@ -164,15 +165,6 @@ async function fileIsComponent(filePath) {
   }
 }
 
-function getFileExt(filePath) {
-  const splitName = path.basename(filePath).split('.');
-  if (splitName.length < 2) {
-    return null;
-  }
-
-  return splitName[splitName.length - 1];
-}
-
 async function logAST(componentName, ast, config) {
   const logPath = path.join(config.clientPath, path.join('.redez', 'logs'));
   const ASTLogPath = path.join(logPath, 'componentASTs');
@@ -254,8 +246,8 @@ function getDefaultExportDeclaration(fileBody) {
 }
 
 /**
-* @param {body} the block to search for the declaration
-* @param {id} the id of the declaration to look for
+* @param {object} body the block to search for the declaration
+* @param {string} id the id of the declaration to look for
 * @returns {object} returns a declaration with the given id
 */
 function findDeclaration(body, idName) {
@@ -278,7 +270,7 @@ function findDeclaration(body, idName) {
 }
 
 /**
-* @param {object} a ClassDeclaration, FunctionDeclaration, or VariableDeclaration
+* @param {object} componentDeclaration ClassDeclaration, FunctionDeclaration, or VariableDeclaration
 * @returns {Array} The every jsx element that might be rendered directly
 * by the declared component, including other components
 */
@@ -306,7 +298,9 @@ function getPotentiallyRenderedElements(componentDeclaration) {
 }
 
 /**
-  * @param {object} the ClassDeclaration, FunctionDeclaration, or VariableDeclaration
+  * @param {object} componentDeclaration the ClassDeclaration,
+  * FunctionDeclaration, or VariableDeclaration
+  *
   * @returns {object} the BlockStatement that defines the component's render function
   */
 function getComponentRenderBlock(componentDeclaration) {
@@ -363,8 +357,8 @@ function flattenJSXTree(node) {
 }
 
 /**
-* @param {Array<ASTNode>} The AST body to search
-* @returns {Array<ASTNode>} ImportDeclaration nodes that import from a relative path
+* @param {object} fileBody The AST body to search
+* @returns {object} ImportDeclaration nodes that import from a relative path
 */
 function getLocalImports(fileBody) {
   // FIXME Support projects configured to use absolute imports and aliases
