@@ -46,16 +46,30 @@ async function updateWebpackConfigFromTarget(config, installDir) {
 
 async function startClient(installDir) {
   process.chdir(installDir);
-  const start = spawn('npm', ['start']);
 
-  start.on('exit', (code) => {
-    if (code > 0) {
+  // Attempt to start editor
+  const start = spawn('npm', ['start']);
+  start.on('exit', (startExitCode) => {
+    // Try npm install if it fails
+    if (startExitCode > 0) {
       const install = spawn('npm', ['install']);
       console.log('Installing editor dependencies... ');
 
-      install.on('exit', () => {
-        console.log('Installation complete');
-        spawn('npm', ['start']);
+      let installationErrors = '';
+
+      install.stderr.on('data', (data) => {
+        installationErrors += data.toString();
+      });
+
+      install.on('exit', (installExitCode) => {
+        if (installExitCode > 0) {
+          console.log('Installation complete');
+          spawn('npm', ['start']);
+        } else {
+          console.error('Installation failed. Errors from npm install:');
+          console.error(installationErrors);
+          process.exit();
+        }
       });
     }
   });
