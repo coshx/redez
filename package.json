@@ -19,6 +19,7 @@
     "@babel/parser": "^7.2.3",
     "apollo-server": "^2.3.1",
     "chalk": "^2.4.1",
+    "cli-spinner": "^0.2.8",
     "commander": "^2.19.0",
     "figlet": "^1.2.1",
     "graphql": "^14.0.2",
