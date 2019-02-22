@@ -5,6 +5,16 @@ const util = require('util');
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
 
+/**
+ * Recursively search the directory for a file
+ * return the path of the first instance found
+ *
+ * @param {string} filename name of the file to look for
+ * @param {string} path of the directory to search
+ * @param {Array} exclude list of directories to ignore
+ *
+ * @returns {string} The path of the first instance of the file found
+ */
 async function findFile(filename, dir, exclude) {
   const files = await readdir(dir);
   if (files.includes(filename)) {
