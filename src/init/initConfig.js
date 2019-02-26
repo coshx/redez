@@ -24,12 +24,9 @@ async function initConfig() {
   const config = configPath ? Object.assign(
     JSON.parse(fs.readFileSync(configPath)),
     { clientPath: path.resolve(configPath, '../..') },
-  ) : generateConfig();
+  ) : await generateConfig();
 
-  config.getCfgPath = function () {
-    return path.join(this.clientPath, '.redez');
-  };
-
+  config.cfgPath = path.join(config.clientPath, '.redez');
   config.srcPath = path.join(config.clientPath, config.srcPath);
   config.rootComponentPath = path.join(config.srcPath, config.rootComponentPath);
   return config;

@@ -2,8 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 
-const readdir = util.promisify(fs.readdir);
+const readDir = util.promisify(fs.readdir);
+const mkDir = util.promisify(fs.mkdir);
 const stat = util.promisify(fs.stat);
+const readFile = util.promisify(fs.readFile);
+const writeFile = util.promisify(fs.writeFile);
+const exists = util.promisify(fs.exists);
 
 /**
  * Recursively search the directory for a file
@@ -16,7 +20,7 @@ const stat = util.promisify(fs.stat);
  * @returns {string} The path of the first instance of the file found
  */
 async function findFile(filename, dir, exclude) {
-  const files = await readdir(dir);
+  const files = await readDir(dir);
   if (files.includes(filename)) {
     return path.join(dir, filename);
   }
@@ -53,4 +57,10 @@ function getFileExt(filePath) {
 module.exports = {
   findFile,
   getFileExt,
+  readFile,
+  writeFile,
+  readDir,
+  mkDir,
+  exists,
+  stat,
 };

@@ -6,16 +6,16 @@ const {
 
 const path = require('path');
 const fs = require('fs');
-const util = require('util');
 
-const exists = util.promisify(fs.exists);
-const readfile = util.promisify(fs.readFile);
-const writeFile = util.promisify(fs.writeFile);
-const mkdir = util.promisify(fs.mkdir);
-const readdir = util.promisify(fs.readdir);
-const stat = util.promisify(fs.stat);
-
-const { getFileExt } = require('../helpers/fsHelper');
+const {
+  getFileExt,
+  exists,
+  readFile,
+  writeFile,
+  mkDir,
+  readDir,
+  stat,
+} = require('../helpers/fsHelper');
 
 let componentPathToTree = {};
 
@@ -96,7 +96,7 @@ async function generateComponentTree(componentPath, config) {
 
 async function getFileAST(filePath) {
   // TODO Use memoization to store component ASTs for later use
-  const code = await readfile(filePath, 'utf8');
+  const code = await readFile(filePath, 'utf8');
 
   return babelParser.parse(code, {
     sourceType: 'module',
@@ -123,7 +123,7 @@ async function getComponentPathsInProjectSrc(config, clearCache) {
 }
 
 async function getComponentPathsInDirectory(dirPath) {
-  const files = await readdir(dirPath);
+  const files = await readDir(dirPath);
   const filePaths = files.map(fileName => path.join(dirPath, fileName));
   const fileMetadata = await Promise.all(filePaths.map(async (filePath) => {
     const stats = await stat(filePath);
@@ -179,10 +179,10 @@ async function logAST(componentName, ast, config) {
   const ASTLogPath = path.join(logPath, 'componentASTs');
 
   if (!fs.existsSync(logPath)) {
-    await mkdir(logPath);
-    await mkdir(ASTLogPath);
+    await mkDir(logPath);
+    await mkDir(ASTLogPath);
   } else if (!fs.existsSync(ASTLogPath)) {
-    await mkdir(ASTLogPath);
+    await mkDir(ASTLogPath);
   }
 
   const ASTBuffer = beautify(JSON.stringify(ast));
