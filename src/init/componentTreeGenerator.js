@@ -15,7 +15,7 @@ const mkdir = util.promisify(fs.mkdir);
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
 
-const { getFileExt } = require('./helpers/fsHelper');
+const { getFileExt } = require('../helpers/fsHelper');
 
 let componentPathToTree = {};
 
@@ -37,7 +37,7 @@ async function generateComponentTrees(config) {
 
   componentPathToTree = {};
 
-  const allComponentPaths = await getComponentPathsInProjectSrc(config);
+  const allComponentPaths = await getComponentPathsInProjectSrc(config, true);
 
   for (let i = 0; i < allComponentPaths.length; i += 1) {
     const componentPath = allComponentPaths[i];
@@ -104,9 +104,18 @@ async function getFileAST(filePath) {
   });
 }
 
-async function getComponentPathsInProjectSrc(config) {
+let cachedComponentPaths;
+async function getComponentPathsInProjectSrc(config, clearCache) {
+  if (clearCache) {
+    cachedComponentPaths = null;
+  }
+
   try {
-    return await getComponentPathsInDirectory(config.srcPath);
+    if (!cachedComponentPaths) {
+      cachedComponentPaths = await getComponentPathsInDirectory(config.srcPath);
+    }
+
+    return cachedComponentPaths;
   } catch (err) {
     console.error(err);
     throw new Error(`Error reading source directory: ${config.srcPath}`);
