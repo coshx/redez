@@ -3,7 +3,7 @@
 const chalk = require('chalk');
 
 const initConfig = require('./initConfig');
-const initClient = require('./initClient');
+const { initClient } = require('./initClient');
 
 const { generateComponentTrees } = require('./componentTreeGenerator');
 
