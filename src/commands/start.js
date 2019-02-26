@@ -1,9 +1,7 @@
 // ** Start Command
 const { ApolloServer, gql } = require('apollo-server');
-const { generateComponentTrees } = require('../componentTreeGenerator.js');
 
 async function start(config) {
-  const componentTrees = await generateComponentTrees(config);
   await startServer();
 
   async function startServer() {
@@ -23,7 +21,7 @@ async function start(config) {
     const resolvers = {
       Query: {
         generateComponentTrees() {
-          return componentTrees;
+          return config.componentTrees;
         },
       },
       ComponentTree: {

@@ -30,6 +30,8 @@ async function initConfig() {
     return path.join(this.clientPath, '.redez');
   };
 
+  config.srcPath = path.join(config.clientPath, config.srcPath);
+  config.rootComponentPath = path.join(config.srcPath, config.rootComponentPath);
   return config;
 }
 

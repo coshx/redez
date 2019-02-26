@@ -18,13 +18,16 @@ async function initClient(config) {
   const installDir = path.join(config.getCfgPath(), REDEZ_CLIENT_DIR_NAME);
 
   if (!clientInstalled) {
-    const installSpinner = new Spinner('Installing client... %s');
+    const installSpinner = new Spinner('Installing editor... %s');
     installSpinner.start();
     await installClientAtTarget(config, installDir);
     installSpinner.stop(false);
   }
 
-  startClient(installDir);
+  const startSpinner = new Spinner('Starting editor... %s');
+  startSpinner.start();
+  await startClient(installDir);
+  startSpinner.stop(false);
 }
 
 async function isClientInstalled(cfgDir) {
@@ -42,47 +45,88 @@ async function installClientAtTarget(config, installDir) {
 }
 
 async function copyClientToTarget(installDir) {
-  await ncp(path.join(SERVER_DIR, REDEZ_CLIENT_DIR_NAME), installDir);
+  const clientSrcPath = path.join(SERVER_DIR, REDEZ_CLIENT_DIR_NAME);
+  await ncp(clientSrcPath, installDir);
 }
 
 async function addTargetProjectAsDependency(config, installDir) {
   const packageDir = path.join(installDir, 'package.json');
   const packageCfg = JSON.parse(await readFile(packageDir));
 
-  if (!packageCfg.dependencies.includes('redez-target')) {
-    packageCfg.dependencies['redez-target'] = 'file:../.';
+  if (!('redez-target' in packageCfg.dependencies)) {
+    packageCfg.dependencies['redez-target'] = 'file:../../.';
     await writeFile(packageDir, JSON.stringify(packageCfg));
   }
 }
 
+// /** Generate a componentLib.js file that imports
+//     all components in the target project */
+// async function generateComponentLib(config) {
+// }
+
+// /** Use babel to transpile the target source code and store in the
+//     .redez directory so it can be imported by the editor */
+// async function transpileTarget(config) {
+// }
+
+// /** Adds the module field to the target project's package.json
+//     so that the editor can add it as a dependency */
+// async function addModuleConfigToTarget(config) {
+// }
+
+// /** Creates a map from component path to component for use by the editor */
+// async function generateComponentMap(config, installDir) {
+// }
+
 async function startClient(installDir) {
   process.chdir(installDir);
 
-  // Attempt to start editor
-  const start = spawn('npm', ['start']);
-  start.on('exit', (startExitCode) => {
-    // Try npm install if it fails
-    if (startExitCode > 0) {
-      const install = spawn('npm', ['install']);
-      console.log('Installing editor dependencies... ');
+  return new Promise((resolve, reject) => {
+    // Attempt to start editor
+    let start = spawn('yarn', ['start']);
+    let startFailure = false;
 
-      let installationErrors = '';
+    start.on('exit', (startExitCode) => {
+      // Try npm install if it fails
+      if (startExitCode > 0) {
+        startFailure = true;
+        const startSpinner = new Spinner('Installing editor dependencies... %s');
+        startSpinner.start();
+        const install = spawn('yarn', ['install']);
 
-      install.stderr.on('data', (data) => {
-        installationErrors += data.toString();
-      });
+        let installationMessages = '';
+        let installationErrors = '';
 
-      install.on('exit', (installExitCode) => {
-        if (installExitCode <= 0) {
-          console.log('Installation complete');
-          spawn('npm', ['start']);
-        } else {
-          console.error('Installation failed. Errors from npm install:');
-          console.error(installationErrors);
-          process.exit(1);
-        }
-      });
-    }
+        install.stdout.on('data', (data) => {
+          installationMessages += data.toString();
+        });
+
+
+        install.stderr.on('data', (data) => {
+          installationErrors += data.toString();
+        });
+
+        install.on('exit', (installExitCode) => {
+          startSpinner.stop(false);
+          if (installExitCode <= 0) {
+            start = spawn('yarn', ['start']);
+            resolve(start);
+          } else {
+            console.error('Installation failed. Errors from npm install:');
+            console.log(installationMessages);
+            console.error(installationErrors);
+            process.exit(1);
+            reject(installationErrors);
+          }
+        });
+      }
+    });
+
+    setTimeout(() => {
+      if (!startFailure) {
+        resolve(start);
+      }
+    }, 3000);
   });
 }
 

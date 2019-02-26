@@ -16,6 +16,8 @@
   "preferGlobal": true,
   "bin": "./src/index.js",
   "dependencies": {
+    "@babel/core": "^7.3.4",
+    "@babel/generator": "^7.3.4",
     "@babel/parser": "^7.2.3",
     "apollo-server": "^2.3.1",
     "chalk": "^2.4.1",
