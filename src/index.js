@@ -4,6 +4,8 @@
 const commander = require('commander');
 
 const start = require('./commands/start');
+const parse = require('./commands/parse');
+
 const init = require('./init/init');
 
 // ** Constants
@@ -14,19 +16,26 @@ commander
   .version('0.0.1')
   .description(DESCRIPTION);
 
-commander
-  .command('start')
+commander.command('start')
   .alias('s')
   .description('Start the editor in the current project')
   .action(runCommand(start));
 
-commander
-  .command('*', { noHelp: true })
+commander.command('parse <file>')
+  .alias('p')
+  .description('Parse the given file into an AST using babel')
+  .action(parse);
+
+commander.command('*', { noHelp: true })
   .action(() => {
     commander.help();
   });
 
-async function runCommand(command) {
-  const config = await init();
-  await command(config);
+function runCommand(command) {
+  return async () => {
+    const config = await init();
+    await command(config);
+  };
 }
+
+commander.parse(process.argv);
